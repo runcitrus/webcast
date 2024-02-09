@@ -7,15 +7,15 @@ const cursorSize = 20
 let mouseX = 0
 let mouseY = 0
 
+const output_path = 'screen.mp4'
 const screenRecorderConfig = {
-    followNewTab: true,
+    followNewTab: false,
     fps: 60,
-    ffmpeg_Path: '/opt/homebrew/bin/ffmpeg',
     videoCrf: 18,
     videoCodec: 'libx264',
     videoPreset: 'ultrafast',
     autopad: {
-        color: 'black' | '#35A5FF',
+        color: 'black',
     },
     aspectRatio: '' + screenWidth + ':' + screenHeight,
 }
@@ -60,7 +60,7 @@ async function easeInOutSleep(acc, pos, len, speed) {
  * @param {number} speed
  */
 async function typing(page, selector, text) {
-    console.log('  > typing', text)
+    console.log(`  > typing to "${ selector }" "${ text }"`)
 
     await page.focus(selector)
 
@@ -120,6 +120,7 @@ async function mouseClick(page) {
     await sleep(200)
     await page.mouse.down()
     await page.mouse.up()
+    await sleep(200)
 }
 
 /**
@@ -138,15 +139,14 @@ async function elementClick(page, selector) {
         throw new Error('Element not visible: ' + selector)
     }
 
-    console.log('  > click on', selector)
+    console.log(`  > click on "${ selector }"`)
 
     const x = Math.round(box.x + box.width / 2)
     const y = Math.round(box.y + box.height / 2)
 
     await mouseMove(page, x, y)
-    await page.focus(selector)
-
     await mouseClick(page)
+    await sleep(200)
 }
 
 /**
@@ -155,14 +155,16 @@ async function elementClick(page, selector) {
  * @param {string} selector
  */
 async function elementScrollIntoView(page, selector) {
-    const element = await page.$(selector)
-    if(!element) {
-        throw new Error('Element not found: ' + selector)
-    }
-
-    console.log('  > scroll to', selector)
-
-    await element.scrollIntoView()
+    await page.evaluate((selector) => {
+        const el = document.querySelector(selector)
+        if(el) {
+            el.scrollIntoView({
+                behavior: 'smooth',
+                block: 'start',
+            })
+        }
+    }, selector)
+    await sleep(200)
 }
 
 async function main() {
@@ -175,8 +177,6 @@ async function main() {
         deviceScaleFactor: 4,
     })
 
-    const recorder = new PuppeteerScreenRecorder(page, screenRecorderConfig)
-
     const lookAroundDelay = 1000
 
     // Open page
@@ -185,57 +185,183 @@ async function main() {
     await page.goto(url)
     await page.waitForNetworkIdle()
     await mouseInit(page)
+    await page.focus('body')
 
     // Init screen recorder
-    await recorder.start('screen.mp4')
+    const recorder = new PuppeteerScreenRecorder(page, screenRecorderConfig)
+    await recorder.start(output_path)
+    await sleep(100)
 
     // Login if needed
     if(await page.$('#password')) {
-        await sleep(lookAroundDelay)
         console.log('log in as admin')
+        await sleep(lookAroundDelay)
         await typing(page, '#name', 'admin')
         await typing(page, '#password', 'admin')
         await sleep(200)
 
-        await elementClick(page, 'form button[type="submit"]')
+        await elementClick(page, 'form button[type=submit]')
+
+        await page.focus('body')
         await page.waitForNetworkIdle()
     }
 
-    await sleep(lookAroundDelay)
+    // APP
+
     console.log('navigate to new app')
+    await sleep(lookAroundDelay)
     await elementClick(page, 'main button')
+
+    await page.focus('body')
     await page.waitForNetworkIdle()
 
-    await sleep(lookAroundDelay)
     console.log('create new app')
+    await sleep(lookAroundDelay)
     await typing(page, '#app_id', 'demo')
 
+    console.log('select preset')
     await sleep(lookAroundDelay)
     await elementClick(page, '#preset')
-    await sleep(200)
     await page.select('#preset', 'nuxt')
 
+    console.log('submit new app')
     await sleep(lookAroundDelay)
-    elementScrollIntoView(page, 'button[type="submit"]')
-
+    elementScrollIntoView(page, 'button[type=submit]')
     await sleep(lookAroundDelay)
-    await elementClick(page, 'button[type="submit"]')
+    await elementClick(page, 'button[type=submit]')
 
-    // console.log('navigate to builds')
-    // await elementClick(page, 'nav > :nth-child(4)')
-    // await page.waitForNetworkIdle()
-    // await sleep(200)
+    await page.focus('body')
+    await page.waitForNetworkIdle()
 
-    // console.log('navigate to new build')
-    // await elementClick(page, 'main button')
-    // await page.waitForNetworkIdle()
-    // await sleep(200)
+    // BUILD
 
-    // console.log('build name')
-    // await typing(page, '#build_name', 'first build')
+    console.log('navigate to builds')
+    await sleep(lookAroundDelay)
+    await elementClick(page, 'nav > :nth-child(5)')
 
-    // console.log('build select archive')
-    // await elementClick(page, 'input[type="file"]')
+    await page.focus('body')
+    await page.waitForNetworkIdle()
+
+    console.log('navigate to new build')
+    await sleep(lookAroundDelay)
+    await elementClick(page, 'main button')
+
+    await page.focus('body')
+    await page.waitForNetworkIdle()
+
+    console.log('build name')
+    await sleep(lookAroundDelay)
+    await typing(page, '#build_name', 'first build')
+
+    console.log('build select archive')
+    await sleep(lookAroundDelay)
+    await elementClick(page, 'input[type="file"]')
+    const sourceFile = await page.$('input[type=file]')
+    await sourceFile.uploadFile('/Users/and/Downloads/nuxt-demo.tar.gz')
+
+    console.log('submit new build')
+    await sleep(lookAroundDelay)
+    elementScrollIntoView(page, 'button[type=submit]')
+    await sleep(lookAroundDelay)
+    await elementClick(page, 'button[type=submit]')
+
+    await page.focus('body')
+    await page.waitForNetworkIdle()
+
+    await page.waitForSelector('main ul>li svg.text-success', {
+        timeout: 120_000,
+    })
+    await sleep(lookAroundDelay)
+
+    // INSTANCE
+
+    console.log('navigate to instances')
+    await sleep(lookAroundDelay)
+    await elementClick(page, 'nav > :nth-child(4)')
+
+    await page.focus('body')
+    await page.waitForNetworkIdle()
+
+    console.log('navigate to new instance')
+    await sleep(lookAroundDelay)
+    await elementClick(page, 'main button')
+
+    await page.focus('body')
+    await page.waitForNetworkIdle()
+
+    console.log('instance name')
+    await sleep(lookAroundDelay)
+    await typing(page, '#instance_name', 'main')
+
+    console.log('instance port')
+    await sleep(lookAroundDelay)
+    await typing(page, '#port', '3000')
+
+    console.log('submit new instance')
+    await sleep(lookAroundDelay)
+    elementScrollIntoView(page, 'button[type=submit]')
+    await sleep(lookAroundDelay)
+    await elementClick(page, 'button[type=submit]')
+
+    await page.focus('body')
+    await page.waitForNetworkIdle()
+
+    await page.waitForSelector('main ul>li svg.text-success')
+    await sleep(lookAroundDelay)
+
+    const instance_id = await page.evaluate(() => {
+        const el = document.querySelector('main ul>li>div')
+        // trim 'instance-' prefix
+        return el ? el.id.slice(9) : null
+    })
+    console.log('instance id:', instance_id)
+
+    // DOMAIN
+
+    console.log('navigate to domains')
+    await sleep(lookAroundDelay)
+    await elementClick(page, 'nav > :nth-child(3)')
+
+    await page.focus('body')
+    await page.waitForNetworkIdle()
+
+    console.log('navigate to new domain')
+    await sleep(lookAroundDelay)
+    await elementClick(page, 'main button')
+
+    await page.focus('body')
+    await page.waitForNetworkIdle()
+
+    console.log('domain name')
+    await sleep(lookAroundDelay)
+    await typing(page, '#domain_name', 'demo.citrus.run')
+
+    console.log('select instance')
+    await sleep(lookAroundDelay)
+    await elementClick(page, '#domain_instance')
+    await page.select('#domain_instance', instance_id)
+
+    console.log('select access method')
+    await sleep(lookAroundDelay)
+    await elementClick(page, '#access')
+    await page.select('#access', 'cloudflare')
+
+    await page.focus('body')
+    await page.waitForNetworkIdle()
+
+    console.log('submit new build')
+    await sleep(lookAroundDelay)
+    elementScrollIntoView(page, 'button[type=submit]')
+    await sleep(lookAroundDelay)
+    await elementClick(page, 'button[type=submit]')
+
+    await page.focus('body')
+    await page.waitForNetworkIdle()
+
+    await page.waitForSelector('main ul>li svg.text-success')
+    await sleep(lookAroundDelay)
+
+    // DONE
 
     await sleep(2000)
 
