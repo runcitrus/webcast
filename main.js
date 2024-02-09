@@ -349,7 +349,7 @@ async function main() {
     await page.focus('body')
     await page.waitForNetworkIdle()
 
-    console.log('submit new build')
+    console.log('submit new domain')
     await sleep(lookAroundDelay)
     elementScrollIntoView(page, 'button[type=submit]')
     await sleep(lookAroundDelay)
@@ -358,8 +358,8 @@ async function main() {
     await page.focus('body')
     await page.waitForNetworkIdle()
 
-    await page.waitForSelector('main ul>li svg.text-success')
-    await sleep(lookAroundDelay)
+    // await page.waitForSelector('main ul>li svg.text-success')
+    // await sleep(lookAroundDelay)
 
     // DONE
 
