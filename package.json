@@ -3,10 +3,16 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "start": "node main.js"
+    "start": "node main.js",
+    "build": "tsc"
   },
   "dependencies": {
     "puppeteer": "^22.0.0",
     "puppeteer-screen-recorder": "^2.1.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.17",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
   }
 }
