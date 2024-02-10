@@ -8,14 +8,15 @@ export class Mouse {
     private x = 0
     private y = 0
 
-    constructor() {}
-
-    async init(page: Page) {
+    constructor(page: Page) {
         this.page = page
+    }
+
+    async init() {
         this.x = -cursorSize
         this.y = -cursorSize
 
-        await page.evaluate((size) => {
+        await this.page.evaluate((size) => {
             let cursor = document.getElementById('screen-cursor')
             if(!cursor) {
                 cursor = document.createElement('div')
@@ -35,7 +36,7 @@ export class Mouse {
         }, cursorSize)
     }
 
-    async move(x, y: number) {
+    async move(x: number, y: number) {
         this.x = x
         this.y = y
         await this.page.mouse.move(x, y)
@@ -44,6 +45,9 @@ export class Mouse {
     async click() {
         await this.page.evaluate((x, y, size) => {
             const cursor = document.getElementById('screen-cursor')
+            if(!cursor) {
+                return
+            }
             const r = size / 2
             cursor.style.left = (x - r) + 'px'
             cursor.style.top = (y - r) + 'px'

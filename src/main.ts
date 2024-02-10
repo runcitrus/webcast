@@ -5,15 +5,28 @@ import { PuppeteerScreenRecorder } from 'puppeteer-screen-recorder'
 import { Mouse } from './mouse'
 import { easeInOutSleep, sleep } from './utils'
 
-export default class WebShot {
+export default async function (w: number, h: number, scale: number): Promise<WebShot> {
+    const browser = await launch()
+    const page = await browser.newPage()
+    await page.setViewport({
+        width: w,
+        height: h,
+        deviceScaleFactor: scale,
+    })
+    return new WebShot(browser, page)
+}
+
+class WebShot {
     private browser: Browser
     public page: Page
     private recorder?: PuppeteerScreenRecorder
 
     private mouse: Mouse
 
-    constructor() {
-        this.mouse = new Mouse()
+    constructor(browser: Browser, page: Page) {
+        this.browser = browser
+        this.page = page
+        this.mouse = new Mouse(page)
     }
 
     // waits for the ms
@@ -21,19 +34,8 @@ export default class WebShot {
         await sleep(ms)
     }
 
-    async start(w, h, scale: number) {
-        this.browser = await launch()
-        this.page = await this.browser.newPage()
-
-        await this.page.setViewport({
-            width: w,
-            height: h,
-            deviceScaleFactor: scale,
-        })
-    }
-
     async stop() {
-        if (this.recorder) {
+        if(this.recorder) {
             await this.recorder.stop()
             this.recorder = undefined
         }
@@ -52,7 +54,7 @@ export default class WebShot {
     async goto(url: string) {
         await this.page.goto(url)
         await this.wait()
-        await this.mouse.init(this.page)
+        await this.mouse.init()
     }
 
     // waits for the network to be idle
@@ -61,7 +63,7 @@ export default class WebShot {
         await this.page.waitForNetworkIdle()
     }
 
-    async textType(selector, text: string) {
+    async textType(selector: string, text: string) {
         await this.page.focus(selector)
 
         let delay = 0
@@ -105,7 +107,7 @@ export default class WebShot {
     }
 
     // selects the value from the select element
-    async elementSelect(selector, value: string) {
+    async elementSelect(selector: string, value: string) {
         const box = await this.elementGetBox(selector)
         const x = Math.round(box.x + box.width / 2)
         const y = Math.round(box.y + box.height / 2)
