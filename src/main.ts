@@ -2,7 +2,7 @@ import { Browser, Page, launch } from 'puppeteer'
 import type { ElementHandle, BoundingBox } from 'puppeteer'
 import { PuppeteerScreenRecorder } from 'puppeteer-screen-recorder'
 
-export type WebShotOptions = {
+export type WebCastOptions = {
     // viewport width
     width: number
 
@@ -22,7 +22,7 @@ export type WebShotOptions = {
     recorder: any
 }
 
-export default async function (options: WebShotOptions): Promise<WebShot> {
+export default async function (options: WebCastOptions): Promise<WebCast> {
     const browser = await launch()
     const page = await browser.newPage()
     await page.setViewport({
@@ -31,7 +31,7 @@ export default async function (options: WebShotOptions): Promise<WebShot> {
         deviceScaleFactor: options.scale,
     })
 
-    return new WebShot(browser, page, options)
+    return new WebCast(browser, page, options)
 }
 
 const sleep = (ms: number) =>
@@ -56,19 +56,19 @@ async function easeInOutSleep(
     return acc
 }
 
-class WebShot {
+class WebCast {
     private browser: Browser
     public page: Page
     private recorder?: PuppeteerScreenRecorder
 
-    private options: WebShotOptions
+    private options: WebCastOptions
     private cursorSize: number
     private cursorBackground: string
 
     private cursorX = 0
     private cursorY = 0
 
-    constructor(browser: Browser, page: Page, options: WebShotOptions) {
+    constructor(browser: Browser, page: Page, options: WebCastOptions) {
         this.browser = browser
         this.page = page
 

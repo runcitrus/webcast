@@ -1,12 +1,18 @@
 {
-  "name": "webshot",
-  "private": true,
+  "name": "@runcitrus/webcast",
+  "version": "0.1.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/runcitrus/webcast.git"
+  },
+  "description": "Automated webcast recording",
+  "license": "MIT",
   "type": "module",
+  "main": "dist/main.js",
+  "types": "dist/main.d.ts",
   "scripts": {
     "build": "tsc"
   },
-  "main": "dist/main.js",
-  "types": "dist/main.d.ts",
   "files": [
     "dist/**/*"
   ],
