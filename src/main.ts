@@ -12,6 +12,12 @@ export type WebShotOptions = {
     // device scale factor
     scale: number
 
+    // cursor size. Default is 20
+    cursorSize?: number
+
+    // cursor background color. Default is 'rgba(0, 0, 0, 0.5)'
+    cursorBackground?: string
+
     // screen recording options
     recorder: any
 }
@@ -24,6 +30,7 @@ export default async function (options: WebShotOptions): Promise<WebShot> {
         height: options.height,
         deviceScaleFactor: options.scale,
     })
+
     return new WebShot(browser, page, options)
 }
 
@@ -52,17 +59,22 @@ async function easeInOutSleep(
 class WebShot {
     private browser: Browser
     public page: Page
-    private options: WebShotOptions
     private recorder?: PuppeteerScreenRecorder
 
-    private cursorSize = 20
+    private options: WebShotOptions
+    private cursorSize: number
+    private cursorBackground: string
+
     private cursorX = 0
     private cursorY = 0
 
     constructor(browser: Browser, page: Page, options: WebShotOptions) {
         this.browser = browser
         this.page = page
+
         this.options = options
+        this.cursorSize = options.cursorSize || 20
+        this.cursorBackground = options.cursorBackground || 'rgba(0, 0, 0, 0.5)'
     }
 
     // waits for the ms
@@ -95,27 +107,41 @@ class WebShot {
         await this.page.goto(url)
         await this.wait()
 
-        this.cursorX = -this.cursorSize
-        this.cursorY = -this.cursorSize
-
-        await this.page.evaluate((size) => {
+        await this.page.evaluate((size, bg) => {
             let cursor = document.getElementById('webshot-cursor')
-            if(!cursor) {
-                cursor = document.createElement('div')
-                document.body.append(cursor)
-
-                cursor.id = 'webshot-cursor'
-                cursor.style.pointerEvents = 'none' // Ensures the cursor doesn't block clicks
-                cursor.style.zIndex = '9999'        // Ensures the cursor is always on top
-                cursor.style.background = 'black'   // Set color
-                cursor.style.opacity = '0.5'        // Set opacity
-                cursor.style.width = size + 'px'    // Set size
-                cursor.style.height = size + 'px'
-                cursor.style.borderRadius = '50%'   // Makes it a circle
-                cursor.style.position = 'fixed'     // Allows it to move freely
+            if(cursor) {
+                cursor.style.display = 'none'
+                return
             }
-            cursor.style.display = 'none'           // Hide it initially
-        }, this.cursorSize)
+
+            const style = document.createElement('style')
+            style.innerHTML =
+`@keyframes webshot-bounce {
+    0%, 100% { transform: scale(1); }
+    25% { transform: scale(1.25); }
+    50% { transform: scale(0.75); }
+    75% { transform: scale(1.15); }
+}
+
+.webshot-cursor {
+    position: fixed;
+    z-index: 9999;
+    pointer-events: none;
+    animation: webshot-bounce 0.5s;
+    animation-iteration-count: 1;
+    background: ${ bg };
+    width: ${ size }px;
+    height: ${ size }px;
+    border-radius: 50%;
+}`;
+
+            cursor = document.createElement('div')
+            document.body.append(style, cursor)
+
+            cursor.id = 'webshot-cursor'
+            cursor.className = 'webshot-cursor'
+            cursor.style.display = 'none'
+        }, this.cursorSize, this.cursorBackground)
     }
 
     // waits for the network to be idle
@@ -132,7 +158,7 @@ class WebShot {
 
     async cursorClick() {
         await this.page.evaluate((x, y, size) => {
-            const cursor = document.getElementById('screen-cursor')
+            const cursor = document.getElementById('webshot-cursor')
             if(!cursor) {
                 return
             }
