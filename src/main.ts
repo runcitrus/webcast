@@ -177,24 +177,14 @@ class WebCast {
         await sleep(200)
     }
 
-    async textType(selector: string, text: string) {
-        await this.page.focus(selector)
-
-        let delay = 0
-        for(let i = 0; i < text.length; i++) {
-            await this.page.keyboard.type(text[i])
-            delay = await easeInOutSleep(delay, i, text.length, 40)
-        }
-    }
-
     // checks if the element exists
-    async elementExists(selector: string): Promise<boolean> {
+    async exists(selector: string): Promise<boolean> {
         const el = await this.page.$(selector)
         return !!el
     }
 
     // gets the bounding box of the element
-    async elementGetBox(selector: string): Promise<BoundingBox> {
+    async boundingBox(selector: string): Promise<BoundingBox> {
         const element = await this.page.$(selector)
         if(!element) {
             throw new Error('element not found: ' + selector)
@@ -209,8 +199,8 @@ class WebCast {
     }
 
     // clicks the center of the element and waits for the network to be idle
-    async elementClick(selector: string) {
-        const box = await this.elementGetBox(selector)
+    async click(selector: string) {
+        const box = await this.boundingBox(selector)
         const x = Math.round(box.x + box.width / 2)
         const y = Math.round(box.y + box.height / 2)
 
@@ -221,8 +211,8 @@ class WebCast {
     }
 
     // selects the value from the select element
-    async elementSelect(selector: string, value: string) {
-        const box = await this.elementGetBox(selector)
+    async selectValue(selector: string, value: string) {
+        const box = await this.boundingBox(selector)
         const x = Math.round(box.x + box.width / 2)
         const y = Math.round(box.y + box.height / 2)
 
@@ -232,8 +222,19 @@ class WebCast {
         await sleep(200)
     }
 
+    // types the text value into the input element
+    async inputText(selector: string, text: string) {
+        await this.page.focus(selector)
+
+        let delay = 0
+        for(let i = 0; i < text.length; i++) {
+            await this.page.keyboard.type(text[i])
+            delay = await easeInOutSleep(delay, i, text.length, 40)
+        }
+    }
+
     // scrolls smoothly to the element
-    async elementScrollIntoView(selector: string) {
+    async scrollIntoView(selector: string) {
         await this.page.evaluate((selector) => {
             const el = document.querySelector(selector)
             if(el) {
@@ -247,20 +248,20 @@ class WebCast {
     }
 
     // selects the file into the file input element
-    async elementFileSelect(selector: string, file: string) {
-        await this.elementClick(selector)
+    async inputFile(selector: string, file: string) {
+        await this.click(selector)
         const sourceFile = await this.page.$(selector) as ElementHandle<HTMLInputElement>
         await sourceFile.uploadFile(file)
     }
 
     // waits for the selector to appear in page
-    async elementWaitFor(selector: string, timeout: number = 30000) {
+    async waitFor(selector: string, timeout: number = 30000) {
         await this.page.waitForSelector(selector, {
             timeout: timeout,
         })
     }
 
-    async elementGetAttribute(selector: string, attribute: string): Promise<string | undefined> {
+    async getAttribute(selector: string, attribute: string): Promise<string | undefined> {
         return await this.page.evaluate((s, a) => {
             const el = document.querySelector(s)
             // trim 'instance-' prefix
