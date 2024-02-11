@@ -2,15 +2,29 @@ import { Browser, Page, launch } from 'puppeteer'
 import type { ElementHandle, BoundingBox } from 'puppeteer'
 import { PuppeteerScreenRecorder } from 'puppeteer-screen-recorder'
 
-export default async function (w: number, h: number, scale: number): Promise<WebShot> {
+export type WebShotOptions = {
+    // viewport width
+    width: number
+
+    // viewport height
+    height: number
+
+    // device scale factor
+    scale: number
+
+    // screen recording options
+    recorder: any
+}
+
+export default async function (options: WebShotOptions): Promise<WebShot> {
     const browser = await launch()
     const page = await browser.newPage()
     await page.setViewport({
-        width: w,
-        height: h,
-        deviceScaleFactor: scale,
+        width: options.width,
+        height: options.height,
+        deviceScaleFactor: options.scale,
     })
-    return new WebShot(browser, page)
+    return new WebShot(browser, page, options)
 }
 
 const sleep = (ms: number) =>
@@ -38,15 +52,17 @@ async function easeInOutSleep(
 class WebShot {
     private browser: Browser
     public page: Page
+    private options: WebShotOptions
     private recorder?: PuppeteerScreenRecorder
 
     private cursorSize = 20
     private cursorX = 0
     private cursorY = 0
 
-    constructor(browser: Browser, page: Page) {
+    constructor(browser: Browser, page: Page, options: WebShotOptions) {
         this.browser = browser
         this.page = page
+        this.options = options
     }
 
     // waits for the ms
@@ -54,20 +70,24 @@ class WebShot {
         await sleep(ms)
     }
 
+    async close() {
+        await this.stop()
+        await this.browser.close()
+    }
+
+    // starts the screen recording
+    async screencast(output: string) {
+        this.recorder = new PuppeteerScreenRecorder(this.page, this.options.recorder)
+        await this.recorder.start(output)
+        await sleep(100)
+    }
+
+    // stops the screen recording
     async stop() {
         if(this.recorder) {
             await this.recorder.stop()
             this.recorder = undefined
         }
-
-        await this.browser.close()
-    }
-
-    // starts the screen recording
-    async screencast(file: string, options: any) {
-        this.recorder = new PuppeteerScreenRecorder(this.page, options)
-        await this.recorder.start(file)
-        await sleep(100)
     }
 
     // navigates to the url and waits for the network to be idle
