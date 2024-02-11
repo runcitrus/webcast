@@ -2,9 +2,6 @@ import { Browser, Page, launch } from 'puppeteer'
 import type { ElementHandle, BoundingBox } from 'puppeteer'
 import { PuppeteerScreenRecorder } from 'puppeteer-screen-recorder'
 
-import { Mouse } from './mouse'
-import { easeInOutSleep, sleep } from './utils'
-
 export default async function (w: number, h: number, scale: number): Promise<WebShot> {
     const browser = await launch()
     const page = await browser.newPage()
@@ -16,17 +13,40 @@ export default async function (w: number, h: number, scale: number): Promise<Web
     return new WebShot(browser, page)
 }
 
+const sleep = (ms: number) =>
+    new Promise((resolve) => setTimeout(resolve, ms))
+
+const easeInOut = (pos: number, len: number, base: number) =>
+    (base + (1 - Math.sin((pos / len) * Math.PI)) * base);
+
+async function easeInOutSleep(
+    acc: number,
+    pos: number,
+    len: number,
+    speed: number,
+): Promise<number> {
+    const delayStep = easeInOut(pos, len, speed)
+    acc += delayStep
+    if(acc >= 1) {
+        const roundedDelay = Math.floor(acc)
+        await sleep(roundedDelay)
+        acc -= roundedDelay
+    }
+    return acc
+}
+
 class WebShot {
     private browser: Browser
     public page: Page
     private recorder?: PuppeteerScreenRecorder
 
-    private mouse: Mouse
+    private cursorSize = 20
+    private cursorX = 0
+    private cursorY = 0
 
     constructor(browser: Browser, page: Page) {
         this.browser = browser
         this.page = page
-        this.mouse = new Mouse(page)
     }
 
     // waits for the ms
@@ -54,13 +74,61 @@ class WebShot {
     async goto(url: string) {
         await this.page.goto(url)
         await this.wait()
-        await this.mouse.init()
+
+        this.cursorX = -this.cursorSize
+        this.cursorY = -this.cursorSize
+
+        await this.page.evaluate((size) => {
+            let cursor = document.getElementById('webshot-cursor')
+            if(!cursor) {
+                cursor = document.createElement('div')
+                document.body.append(cursor)
+
+                cursor.id = 'webshot-cursor'
+                cursor.style.pointerEvents = 'none' // Ensures the cursor doesn't block clicks
+                cursor.style.zIndex = '9999'        // Ensures the cursor is always on top
+                cursor.style.background = 'black'   // Set color
+                cursor.style.opacity = '0.5'        // Set opacity
+                cursor.style.width = size + 'px'    // Set size
+                cursor.style.height = size + 'px'
+                cursor.style.borderRadius = '50%'   // Makes it a circle
+                cursor.style.position = 'fixed'     // Allows it to move freely
+            }
+            cursor.style.display = 'none'           // Hide it initially
+        }, this.cursorSize)
     }
 
     // waits for the network to be idle
     async wait() {
         await this.page.focus('body')
         await this.page.waitForNetworkIdle()
+    }
+
+    async cursorMove(x: number, y: number) {
+        this.cursorX = x
+        this.cursorY = y
+        await this.page.mouse.move(x, y)
+    }
+
+    async cursorClick() {
+        await this.page.evaluate((x, y, size) => {
+            const cursor = document.getElementById('screen-cursor')
+            if(!cursor) {
+                return
+            }
+            const r = size / 2
+            cursor.style.left = (x - r) + 'px'
+            cursor.style.top = (y - r) + 'px'
+            cursor.style.display = 'block'
+            setTimeout(() => {
+                cursor.style.display = 'none'
+            }, 500)
+        }, this.cursorX, this.cursorY, this.cursorSize)
+
+        await sleep(200)
+        await this.page.mouse.down()
+        await this.page.mouse.up()
+        await sleep(200)
     }
 
     async textType(selector: string, text: string) {
@@ -100,8 +168,8 @@ class WebShot {
         const x = Math.round(box.x + box.width / 2)
         const y = Math.round(box.y + box.height / 2)
 
-        await this.mouse.move(x, y)
-        await this.mouse.click()
+        await this.cursorMove(x, y)
+        await this.cursorClick()
         await this.wait()
         await sleep(200)
     }
@@ -112,8 +180,8 @@ class WebShot {
         const x = Math.round(box.x + box.width / 2)
         const y = Math.round(box.y + box.height / 2)
 
-        await this.mouse.move(x, y)
-        await this.mouse.click()
+        await this.cursorMove(x, y)
+        await this.cursorClick()
         await this.page.select(selector, value)
         await sleep(200)
     }
