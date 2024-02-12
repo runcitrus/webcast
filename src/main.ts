@@ -58,7 +58,7 @@ async function easeInOutSleep(
 
 class WebCast {
     private browser: Browser
-    public page: Page
+    private page: Page
     private recorder?: PuppeteerScreenRecorder
 
     private options: WebCastOptions
@@ -100,6 +100,10 @@ class WebCast {
             await this.recorder.stop()
             this.recorder = undefined
         }
+    }
+
+    async setMediaFeature(name: string, value: string) {
+        await this.page.emulateMediaFeatures([{ name, value }])
     }
 
     // navigates to the url and waits for the network to be idle
