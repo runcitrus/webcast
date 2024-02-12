@@ -178,9 +178,85 @@ class WebCast {
     }
 
     // checks if the element exists
-    async exists(selector: string): Promise<boolean> {
+    async elementExists(selector: string): Promise<boolean> {
         const el = await this.page.$(selector)
         return !!el
+    }
+
+    // scroll to the element and focus it,
+    private async elementFocus(selector: string, offset: number = 100) {
+        const ok = await this.page.evaluate((selector, offset) => new Promise<boolean>(
+            resolve => {
+                const el = document.querySelector<HTMLElement>(selector)
+                if(!el) {
+                    resolve(false)
+                    return
+                }
+                const rect = el.getBoundingClientRect()
+                let top = rect.top - offset // element top with offset
+
+                // scroll not needed element in focus
+                if(top >= 0 && top <= window.innerHeight / 2 + offset) {
+                    resolve(false)
+                    return
+                }
+
+                if(top > 0) {
+                    // scroll down (move page up)
+                    const maxScroll = window.document.documentElement.scrollHeight - window.innerHeight - 1
+
+                    // page already at the bootom
+                    if(window.scrollY >= maxScroll) {
+                        resolve(false)
+                        return
+                    }
+
+                    // element at the page bottom and could not be scrolled to the top
+                    if(top > maxScroll) {
+                        top = maxScroll
+                    }
+                } else {
+                    // scroll up (move page down)
+
+                    // page already at the top
+                    if(window.scrollY <= 1) {
+                        resolve(false)
+                        return
+                    }
+                }
+
+                const startPosition = window.scrollY
+                const targetPosition = top + startPosition
+
+                // calculate duration based on distance
+                const duration = Math.abs(top) / 2
+
+                const startTime = performance.now()
+                const step = (currentTime: number) => {
+                    const elapsed = currentTime - startTime
+                    const t = Math.min(elapsed / duration,  1)
+                    const e = (t <  0.5) ?  (2 * t * t) : (-1 + (4 -  2 * t) * t)
+                    const y = Math.round(startPosition + (targetPosition - startPosition) * e)
+                    window.scrollTo({
+                        left: 0,
+                        top: y,
+                        behavior: 'instant',
+                    })
+
+                    if (t <  1) {
+                        window.requestAnimationFrame(step)
+                    } else {
+                        el.focus({ preventScroll: true })
+                        resolve(true)
+                    }
+                }
+                window.requestAnimationFrame(step)
+            }
+        ), selector, offset)
+
+        if(ok) {
+            await sleep(500)
+        }
     }
 
     // gets the bounding box of the element
@@ -200,6 +276,8 @@ class WebCast {
 
     // clicks the center of the element and waits for the network to be idle
     async click(selector: string) {
+        await this.elementFocus(selector)
+
         const box = await this.boundingBox(selector)
         const x = Math.round(box.x + box.width / 2)
         const y = Math.round(box.y + box.height / 2)
@@ -212,6 +290,8 @@ class WebCast {
 
     // selects the value from the select element
     async selectValue(selector: string, value: string) {
+        await this.elementFocus(selector)
+
         const box = await this.boundingBox(selector)
         const x = Math.round(box.x + box.width / 2)
         const y = Math.round(box.y + box.height / 2)
@@ -224,7 +304,7 @@ class WebCast {
 
     // types the text value into the input element
     async inputText(selector: string, text: string) {
-        await this.page.focus(selector)
+        await this.elementFocus(selector)
 
         let delay = 0
         for(let i = 0; i < text.length; i++) {
@@ -233,22 +313,10 @@ class WebCast {
         }
     }
 
-    // scrolls smoothly to the element
-    async scrollIntoView(selector: string) {
-        await this.page.evaluate((selector) => {
-            const el = document.querySelector(selector)
-            if(el) {
-                el.scrollIntoView({
-                    behavior: 'smooth',
-                    block: 'start',
-                })
-            }
-        }, selector)
-        await sleep(200)
-    }
-
     // selects the file into the file input element
     async inputFile(selector: string, file: string) {
+        await this.elementFocus(selector)
+
         await this.click(selector)
         const sourceFile = await this.page.$(selector) as ElementHandle<HTMLInputElement>
         await sourceFile.uploadFile(file)
