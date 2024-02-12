@@ -198,7 +198,6 @@ class WebCast {
 
                 // scroll not needed element in focus
                 if(top >= 0 && top <= window.innerHeight / 2 + offset) {
-                    el.focus({ preventScroll: true })
                     resolve(false)
                     return
                 }
@@ -209,7 +208,6 @@ class WebCast {
 
                     // page already at the bootom
                     if(window.scrollY >= maxScroll) {
-                        el.focus({ preventScroll: true })
                         resolve(false)
                         return
                     }
@@ -223,7 +221,6 @@ class WebCast {
 
                     // page already at the top
                     if(window.scrollY <= 1) {
-                        el.focus({ preventScroll: true })
                         resolve(false)
                         return
                     }
@@ -250,7 +247,6 @@ class WebCast {
                     if (t <  1) {
                         window.requestAnimationFrame(step)
                     } else {
-                        el.focus({ preventScroll: true })
                         resolve(true)
                     }
                 }
@@ -261,6 +257,8 @@ class WebCast {
         if(ok) {
             await sleep(500)
         }
+
+        await this.page.focus(selector)
     }
 
     // gets the bounding box of the element
