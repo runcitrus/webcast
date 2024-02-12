@@ -150,13 +150,13 @@ class WebCast {
         await this.page.waitForNetworkIdle()
     }
 
-    async cursorMove(x: number, y: number) {
+    private async cursorMove(x: number, y: number) {
         this.cursorX = x
         this.cursorY = y
         await this.page.mouse.move(x, y)
     }
 
-    async cursorClick() {
+    private async cursorClick() {
         await this.page.evaluate((x, y, size) => {
             const cursor = document.getElementById('webshot-cursor')
             if(!cursor) {
@@ -183,86 +183,8 @@ class WebCast {
         return !!el
     }
 
-    // scroll to the element and focus it,
-    private async elementFocus(selector: string, offset: number = 100) {
-        const ok = await this.page.evaluate((selector, offset) => new Promise<boolean>(
-            resolve => {
-                const el = document.querySelector<HTMLElement>(selector)
-                if(!el) {
-                    resolve(false)
-                    return
-                }
-
-                const rect = el.getBoundingClientRect()
-                let top = rect.top - offset // element top with offset
-
-                // scroll not needed element in focus
-                if(top >= 0 && top <= window.innerHeight / 2 + offset) {
-                    resolve(false)
-                    return
-                }
-
-                if(top > 0) {
-                    // scroll down (move page up)
-                    const maxScroll = window.document.documentElement.scrollHeight - window.innerHeight - 1
-
-                    // page already at the bootom
-                    if(window.scrollY >= maxScroll) {
-                        resolve(false)
-                        return
-                    }
-
-                    // element at the page bottom and could not be scrolled to the top
-                    if(top > maxScroll) {
-                        top = maxScroll
-                    }
-                } else {
-                    // scroll up (move page down)
-
-                    // page already at the top
-                    if(window.scrollY <= 1) {
-                        resolve(false)
-                        return
-                    }
-                }
-
-                const startPosition = window.scrollY
-                const targetPosition = top + startPosition
-
-                // calculate duration based on distance
-                const duration = Math.abs(top) / 2
-
-                const startTime = performance.now()
-                const step = (currentTime: number) => {
-                    const elapsed = currentTime - startTime
-                    const t = Math.min(elapsed / duration,  1)
-                    const e = (t <  0.5) ?  (2 * t * t) : (-1 + (4 -  2 * t) * t)
-                    const y = Math.round(startPosition + (targetPosition - startPosition) * e)
-                    window.scrollTo({
-                        left: 0,
-                        top: y,
-                        behavior: 'instant',
-                    })
-
-                    if (t <  1) {
-                        window.requestAnimationFrame(step)
-                    } else {
-                        resolve(true)
-                    }
-                }
-                window.requestAnimationFrame(step)
-            }
-        ), selector, offset)
-
-        if(ok) {
-            await sleep(500)
-        }
-
-        await this.page.focus(selector)
-    }
-
-    // gets the bounding box of the element
-    async boundingBox(selector: string): Promise<BoundingBox> {
+    // focuses the element and clicks the center of the element
+    private async elementClick(selector: string) {
         const element = await this.page.$(selector)
         if(!element) {
             throw new Error('element not found: ' + selector)
@@ -273,40 +195,34 @@ class WebCast {
             throw new Error('element not visible: ' + selector)
         }
 
-        return box
-    }
-
-    // clicks the center of the element and waits for the network to be idle
-    async click(selector: string) {
-        await this.elementFocus(selector)
-
-        const box = await this.boundingBox(selector)
         const x = Math.round(box.x + box.width / 2)
         const y = Math.round(box.y + box.height / 2)
 
         await this.cursorMove(x, y)
         await this.cursorClick()
+
+        await element.focus()
+    }
+
+    // clicks the center of the element and waits for the network to be idle
+    async click(selector: string) {
+        await this.elementClick(selector)
+
         await this.wait()
         await sleep(200)
     }
 
     // selects the value from the select element
     async selectValue(selector: string, value: string) {
-        await this.elementFocus(selector)
+        await this.elementClick(selector)
 
-        const box = await this.boundingBox(selector)
-        const x = Math.round(box.x + box.width / 2)
-        const y = Math.round(box.y + box.height / 2)
-
-        await this.cursorMove(x, y)
-        await this.cursorClick()
         await this.page.select(selector, value)
         await sleep(200)
     }
 
     // types the text value into the input element
     async inputText(selector: string, text: string) {
-        await this.elementFocus(selector)
+        await this.elementClick(selector)
 
         let delay = 0
         for(let i = 0; i < text.length; i++) {
@@ -317,9 +233,8 @@ class WebCast {
 
     // selects the file into the file input element
     async inputFile(selector: string, file: string) {
-        await this.elementFocus(selector)
+        await this.elementClick(selector)
 
-        await this.click(selector)
         const sourceFile = await this.page.$(selector) as ElementHandle<HTMLInputElement>
         await sourceFile.uploadFile(file)
     }
@@ -329,6 +244,15 @@ class WebCast {
         await this.page.waitForSelector(selector, {
             timeout: timeout,
         })
+    }
+
+    async scrollIntoView(selector: string) {
+        await this.page.evaluate((s) => {
+            const el = document.querySelector(s)
+            el?.scrollIntoView({
+                behavior: 'smooth',
+            })
+        }, selector)
     }
 
     async getAttribute(selector: string, attribute: string): Promise<string | undefined> {
