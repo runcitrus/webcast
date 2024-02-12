@@ -195,13 +195,13 @@ class WebCast {
             throw new Error('element not visible: ' + selector)
         }
 
+        await element.focus()
+
         const x = Math.round(box.x + box.width / 2)
         const y = Math.round(box.y + box.height / 2)
 
         await this.cursorMove(x, y)
         await this.cursorClick()
-
-        await element.focus()
     }
 
     // clicks the center of the element and waits for the network to be idle
