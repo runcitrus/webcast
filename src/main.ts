@@ -127,7 +127,7 @@ class WebCast {
     position: fixed;
     z-index: 9999;
     pointer-events: none;
-    animation: webshot-bounce 0.5s;
+    animation: webshot-bounce 0.4s;
     animation-iteration-count: 1;
     background: ${ bg };
     width: ${ size }px;
@@ -157,21 +157,25 @@ class WebCast {
     }
 
     private async cursorClick() {
-        await this.page.evaluate((x, y, size) => {
-            const cursor = document.getElementById('webshot-cursor')
-            if(!cursor) {
-                return
-            }
-            const r = size / 2
-            cursor.style.left = (x - r) + 'px'
-            cursor.style.top = (y - r) + 'px'
-            cursor.style.display = 'block'
-            setTimeout(() => {
-                cursor.style.display = 'none'
-            }, 500)
-        }, this.cursorX, this.cursorY, this.cursorSize)
+        await this.page.evaluate((x, y, size) => new Promise<void>(
+            resolve => {
+                const cursor = document.getElementById('webshot-cursor')
+                if(!cursor) {
+                    resolve()
+                    return
+                }
 
-        await sleep(200)
+                const r = size / 2
+                cursor.style.left = (x - r) + 'px'
+                cursor.style.top = (y - r) + 'px'
+                cursor.style.display = 'block'
+                setTimeout(() => {
+                    cursor.style.display = 'none'
+                    resolve()
+                }, 400)
+            }
+        ), this.cursorX, this.cursorY, this.cursorSize)
+
         await this.page.mouse.down()
         await this.page.mouse.up()
         await sleep(200)
