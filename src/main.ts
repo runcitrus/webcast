@@ -192,11 +192,13 @@ class WebCast {
                     resolve(false)
                     return
                 }
+
                 const rect = el.getBoundingClientRect()
                 let top = rect.top - offset // element top with offset
 
                 // scroll not needed element in focus
                 if(top >= 0 && top <= window.innerHeight / 2 + offset) {
+                    el.focus({ preventScroll: true })
                     resolve(false)
                     return
                 }
@@ -207,6 +209,7 @@ class WebCast {
 
                     // page already at the bootom
                     if(window.scrollY >= maxScroll) {
+                        el.focus({ preventScroll: true })
                         resolve(false)
                         return
                     }
@@ -220,6 +223,7 @@ class WebCast {
 
                     // page already at the top
                     if(window.scrollY <= 1) {
+                        el.focus({ preventScroll: true })
                         resolve(false)
                         return
                     }
