@@ -78,7 +78,7 @@ class WebCast {
     }
 
     // waits for the ms
-    async sleep(ms: number) {
+    async sleep(ms: number = 1000) {
         await sleep(ms)
     }
 
