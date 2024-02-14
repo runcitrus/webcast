@@ -42,9 +42,7 @@ export type SplashScreenOptions = {
     subtitleStyle?: ElementCSSInlineStyle
 }
 
-export default async function (options: WebCastOptions): Promise<WebCast> {
-    const browser = await launch()
-    const page = await browser.newPage()
+async function pageInit(page: Page, options: WebCastOptions) {
     await page.setViewport({
         width: options.width,
         height: options.height,
@@ -57,8 +55,13 @@ export default async function (options: WebCastOptions): Promise<WebCast> {
     })
 
     page.on('pageerror', ({ message }) => console.error(message))
+}
 
-    return new WebCast(browser, page, options)
+export default async function (options: WebCastOptions): Promise<WebCast> {
+    const browser = await launch()
+    const page = await browser.newPage()
+    await pageInit(page, options)
+    return new WebCast(page, options)
 }
 
 const sleep = (ms: number) =>
@@ -84,20 +87,25 @@ async function easeInOutSleep(
 }
 
 class WebCast {
-    private browser: Browser
     private page: Page
     private recorder?: PuppeteerScreenRecorder
 
     private options: WebCastOptions
 
-    constructor(browser: Browser, page: Page, options: WebCastOptions) {
-        this.browser = browser
+    constructor(page: Page, options: WebCastOptions) {
         this.page = page
 
         this.options = Object.assign({}, {
             cursorSize: 20,
             cursorBackground: 'rgba(0, 0, 0, 0.5)',
         }, options)
+    }
+
+    async newPage(): Promise<WebCast> {
+        const browser = this.page.browser()
+        const page = await browser.newPage()
+        await pageInit(page, this.options)
+        return new WebCast(page, this.options)
     }
 
     // waits for the ms
@@ -107,7 +115,9 @@ class WebCast {
 
     async close() {
         await this.stop()
-        await this.browser.close()
+
+        const browser = this.page.browser()
+        await browser.close()
     }
 
     // starts the screen recording
