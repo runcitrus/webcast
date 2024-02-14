@@ -1,5 +1,5 @@
 import { Browser, Page, launch } from 'puppeteer'
-import type { ElementHandle, BoundingBox } from 'puppeteer'
+import type { ElementHandle, ConsoleMessage } from 'puppeteer'
 import { PuppeteerScreenRecorder } from 'puppeteer-screen-recorder'
 
 export type WebCastOptions = {
@@ -22,6 +22,23 @@ export type WebCastOptions = {
     recorder: any
 }
 
+export type SplashScreenOptions = {
+    // background image
+    style: ElementCSSInlineStyle
+
+    // logo
+    logo?: string
+    logoStyle?: ElementCSSInlineStyle
+
+    // title
+    title?: string
+    titleStyle?: ElementCSSInlineStyle
+
+    // subtitle
+    subtitle?: string
+    subtitleStyle?: ElementCSSInlineStyle
+}
+
 export default async function (options: WebCastOptions): Promise<WebCast> {
     const browser = await launch()
     const page = await browser.newPage()
@@ -30,6 +47,13 @@ export default async function (options: WebCastOptions): Promise<WebCast> {
         height: options.height,
         deviceScaleFactor: options.scale,
     })
+
+    page.on('console', (message: ConsoleMessage) => {
+        const t = message.type().substring(0, 3).toUpperCase()
+        console.log('  > ' + t + ' ' + message.text())
+    })
+
+    page.on('pageerror', ({ message }) => console.error(message))
 
     return new WebCast(browser, page, options)
 }
@@ -260,5 +284,81 @@ class WebCast {
             // trim 'instance-' prefix
             return el?.getAttribute(a) || undefined
         }, selector, attribute)
+    }
+
+    async showSplashScreen(options: SplashScreenOptions) {
+        await this.page.evaluate((options: SplashScreenOptions) => {
+            const splash = document.createElement('div')
+            splash.id = 'webshot-splashscreen'
+            Object.assign(splash.style, {
+                position: 'absolute',
+                top: '0',
+                left: '0',
+                width: '100%',
+                height: '100%',
+                backgroundSize: 'cover',
+                zIndex: '9999',
+                ...options.style,
+            })
+            document.body.appendChild(splash)
+
+            if(options.logo) {
+                const logo = document.createElement('img')
+                logo.src = options.logo
+                Object.assign(logo.style, {
+                    display: 'block',
+                    position: 'absolute',
+                    top: '100px',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    ...options.logoStyle,
+                })
+                splash.appendChild(logo)
+            }
+
+            if(options.title) {
+                const title = document.createElement('h1')
+                title.innerText = options.title
+                Object.assign(title.style, {
+                    position: 'absolute',
+                    top: '50%',
+                    left: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    textAlign: 'center',
+                    color: 'white',
+                    fontSize: '42px',
+                    fontWeight: 'bold',
+                    ...options.titleStyle,
+                })
+                splash.appendChild(title)
+            }
+
+            if(options.subtitle) {
+                const subtitle = document.createElement('h2')
+                subtitle.innerText = options.subtitle
+                Object.assign(subtitle.style, {
+                    position: 'absolute',
+                    bottom: '100px',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    textAlign: 'center',
+                    color: 'white',
+                    fontSize: '24px',
+                    fontWeight: '500',
+                    ...options.subtitleStyle,
+                })
+                splash.appendChild(subtitle)
+            }
+
+            splash.focus()
+        }, options)
+
+        await this.wait()
+    }
+
+    async hideSplashScreen() {
+        await this.page.evaluate(() => {
+            document.getElementById('webshot-splashscreen')?.remove()
+        })
     }
 }
