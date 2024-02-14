@@ -133,39 +133,54 @@ class WebCast {
         await this.wait()
 
         await this.page.evaluate((size, bg) => {
-            let cursor = document.getElementById('webshot-cursor')
-            if(cursor) {
-                cursor.style.display = 'none'
-                return
-            }
-
             const style = document.createElement('style')
             style.innerHTML =
-`@keyframes webshot-bounce {
+`@keyframes webcast-bounce {
     0%, 100% { transform: scale(1); }
     25% { transform: scale(1.25); }
     50% { transform: scale(0.75); }
     75% { transform: scale(1.15); }
 }
 
-.webshot-cursor {
+@keyframes webcast-blink {
+    0% { background: black; }
+    100% { background: white; }
+}
+
+.webcast-cursor {
     position: fixed;
     z-index: 9999;
     pointer-events: none;
-    animation: webshot-bounce 0.4s;
+    animation: webcast-bounce 0.4s;
     animation-iteration-count: 1;
     background: ${ bg };
     width: ${ size }px;
     height: ${ size }px;
     border-radius: 50%;
+}
+
+.webcast-h264-blink {
+    position: fixed;
+    z-index: 99999;
+    right: 1px;
+    bottom: 1px;
+    width: 1px;
+    height: 1px;
+    animation: webcast-blink 1s linear infinite;
 }`;
+            document.body.append(style)
 
-            cursor = document.createElement('div')
-            document.body.append(style, cursor)
-
-            cursor.id = 'webshot-cursor'
-            cursor.className = 'webshot-cursor'
+            const cursor = document.createElement('div')
+            document.body.append(cursor)
+            cursor.id = 'webcast-cursor'
+            cursor.className = 'webcast-cursor'
             cursor.style.display = 'none'
+
+            // hack to prevent h264 video from skipping static frames
+            const hack = document.createElement('div')
+            document.body.append(hack)
+            hack.id = 'webcast-h264-blink'
+            hack.className = 'webcast-h264-blink'
         }, this.cursorSize, this.cursorBackground)
     }
 
@@ -178,7 +193,7 @@ class WebCast {
     async cursorClick(x: number, y: number) {
         await this.page.evaluate((x, y, size) => new Promise<void>(
             resolve => {
-                const cursor = document.getElementById('webshot-cursor')
+                const cursor = document.getElementById('webcast-cursor')
                 if(!cursor) {
                     resolve()
                     return
@@ -289,7 +304,7 @@ class WebCast {
     async showSplashScreen(options: SplashScreenOptions) {
         await this.page.evaluate((options: SplashScreenOptions) => {
             const splash = document.createElement('div')
-            splash.id = 'webshot-splashscreen'
+            splash.id = 'webcast-splashscreen'
             Object.assign(splash.style, {
                 position: 'absolute',
                 top: '0',
@@ -358,7 +373,7 @@ class WebCast {
 
     async hideSplashScreen() {
         await this.page.evaluate(() => {
-            document.getElementById('webshot-splashscreen')?.remove()
+            document.getElementById('webcast-splashscreen')?.remove()
         })
     }
 }
