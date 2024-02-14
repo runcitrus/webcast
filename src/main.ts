@@ -20,6 +20,9 @@ export type WebCastOptions = {
 
     // screen recording options
     recorder: any
+
+    // fonts
+    fonts?: string[]
 }
 
 export type SplashScreenOptions = {
@@ -86,16 +89,15 @@ class WebCast {
     private recorder?: PuppeteerScreenRecorder
 
     private options: WebCastOptions
-    private cursorSize: number
-    private cursorBackground: string
 
     constructor(browser: Browser, page: Page, options: WebCastOptions) {
         this.browser = browser
         this.page = page
 
-        this.options = options
-        this.cursorSize = options.cursorSize || 20
-        this.cursorBackground = options.cursorBackground || 'rgba(0, 0, 0, 0.5)'
+        this.options = Object.assign({}, {
+            cursorSize: 20,
+            cursorBackground: 'rgba(0, 0, 0, 0.5)',
+        }, options)
     }
 
     // waits for the ms
@@ -132,7 +134,7 @@ class WebCast {
         await this.page.goto(url)
         await this.wait()
 
-        await this.page.evaluate((size, bg) => {
+        await this.page.evaluate((options: WebCastOptions) => {
             const style = document.createElement('style')
             style.innerHTML =
 `@keyframes webcast-bounce {
@@ -153,9 +155,9 @@ class WebCast {
     pointer-events: none;
     animation: webcast-bounce 0.4s;
     animation-iteration-count: 1;
-    background: ${ bg };
-    width: ${ size }px;
-    height: ${ size }px;
+    background: ${ options.cursorBackground };
+    width: ${ options.cursorSize }px;
+    height: ${ options.cursorSize }px;
     border-radius: 50%;
 }
 
@@ -181,7 +183,16 @@ class WebCast {
             document.body.append(hack)
             hack.id = 'webcast-h264-blink'
             hack.className = 'webcast-h264-blink'
-        }, this.cursorSize, this.cursorBackground)
+
+            if(options.fonts) {
+                for(const font of options.fonts) {
+                    const link = document.createElement('link')
+                    link.href = font
+                    link.rel = 'stylesheet'
+                    document.head.append(link)
+                }
+            }
+        }, this.options)
     }
 
     // waits for the network to be idle
@@ -208,7 +219,7 @@ class WebCast {
                     resolve()
                 }, 400)
             }
-        ), x, y, this.cursorSize)
+        ), x, y, this.options.cursorSize!)
 
         await this.page.mouse.move(x, y)
         await this.page.mouse.down()
