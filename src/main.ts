@@ -65,9 +65,6 @@ class WebCast {
     private cursorSize: number
     private cursorBackground: string
 
-    private cursorX = 0
-    private cursorY = 0
-
     constructor(browser: Browser, page: Page, options: WebCastOptions) {
         this.browser = browser
         this.page = page
@@ -154,13 +151,7 @@ class WebCast {
         await this.page.waitForNetworkIdle()
     }
 
-    private async cursorMove(x: number, y: number) {
-        this.cursorX = x
-        this.cursorY = y
-        await this.page.mouse.move(x, y)
-    }
-
-    private async cursorClick() {
+    async cursorClick(x: number, y: number) {
         await this.page.evaluate((x, y, size) => new Promise<void>(
             resolve => {
                 const cursor = document.getElementById('webshot-cursor')
@@ -178,8 +169,9 @@ class WebCast {
                     resolve()
                 }, 400)
             }
-        ), this.cursorX, this.cursorY, this.cursorSize)
+        ), x, y, this.cursorSize)
 
+        await this.page.mouse.move(x, y)
         await this.page.mouse.down()
         await this.page.mouse.up()
         await sleep(200)
@@ -208,8 +200,7 @@ class WebCast {
         const x = Math.round(box.x + box.width / 2)
         const y = Math.round(box.y + box.height / 2)
 
-        await this.cursorMove(x, y)
-        await this.cursorClick()
+        await this.cursorClick(x, y)
     }
 
     // clicks the center of the element and waits for the network to be idle
