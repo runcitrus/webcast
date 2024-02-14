@@ -27,6 +27,18 @@ async function main() {
     await w.goto('http://example.com')
     await w.screencast('screen.mp4')
 
+    // splash screen
+    await w.showSplashScreen({
+        style: {
+            background: 'linear-gradient(90deg, red, green, blue)',
+        },
+
+        logo: 'http://example.com/logo.png',
+        title: 'Example app',
+    })
+    await w.sleep(2000)
+    await w.hideSplashScreen()
+
     // click on button or link
     await w.click('button[type=submit]')
 
